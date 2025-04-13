@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -34,49 +35,48 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject heart;
 
     public bool IsGameOver => !performUpdate;
-    
+
     private void Awake()
     {
         // Set the instance to this
         Instance = this;
-    }
 
-    private void Start()
-    {
+        // Set the intervals
         leftInterval = updateInterval / 2;
         rightInterval = updateInterval;
     }
 
-    private void Update()
+    private void Start()
     {
-        // If interval hits 0, invoke update event and reset.
-        if (performUpdate)
+        // Start coroutines for each snake
+        StartCoroutine(UpdateSnakeCoroutine(false));
+        StartCoroutine(UpdateSnakeCoroutine(true));
+    }
+
+    private IEnumerator UpdateSnakeCoroutine(bool isRight)
+    {
+        // Delay the start of the updates depending on the direction of the snake
+        if (isRight)
+            yield return new WaitForSeconds(rightInterval);
+        else
+            yield return new WaitForSeconds(leftInterval);
+
+        // Loop until we stop the game.
+        while (performUpdate)
         {
-            leftInterval -= Time.deltaTime;
-            rightInterval -= Time.deltaTime;
+            // Perform the update event.
+            if (isRight)
+                rightUpdateEvent.Invoke();
+            else
+                leftUpdateEvent.Invoke();
+
+            // If both snakes have won, stop the game and display win screen!
+            if (!hasWon && (leftSnake.GetHasWon() || rightSnake.GetHasWon()))
+                OnWin();
+
+            // Wait for the next interval.
+            yield return new WaitForSeconds(updateInterval);
         }
-
-        if (leftInterval <= 0)
-        {
-            // Perform regular update functions.
-            leftUpdateEvent.Invoke();
-
-            // Reset interval.
-            leftInterval = updateInterval;
-        }
-
-        if (rightInterval <= 0)
-        {
-            // Perform regular update functions.
-            rightUpdateEvent.Invoke();
-
-            // Reset interval.
-            rightInterval = updateInterval;
-        }
-
-        // If both snakes have won, stop the game and display win screen!
-        if (!hasWon && (leftSnake.GetHasWon() || rightSnake.GetHasWon()))
-            OnWin();
     }
 
     // Stop our update loop.
