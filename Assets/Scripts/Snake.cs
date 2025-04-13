@@ -17,7 +17,7 @@ public class Snake : MonoBehaviour
     [Header("Movement"), SerializeField] private bool isRight;
 
     [Tooltip("The last direction inputted for this snake. Will move this direction on next update."), SerializeField]
-    private Vector2 lastDir;
+    private Vector2Int lastDir;
 
     [Header("Segments"), SerializeField] private Transform[] segments;
 
@@ -50,18 +50,28 @@ public class Snake : MonoBehaviour
         // Setup different controls based on left and right snake.
         if (!isRight)
         {
-            _pControls.LeftSnake.Up.started += ctx => lastDir = new Vector2(0, 1);
-            _pControls.LeftSnake.Down.started += ctx => lastDir = new Vector2(0, -1);
-            _pControls.LeftSnake.Left.started += ctx => lastDir = new Vector2(-1, 0);
-            _pControls.LeftSnake.Right.started += ctx => lastDir = new Vector2(1, 0);
+            _pControls.LeftSnake.Up.performed += _ => SetMovementDirection(new Vector2Int(0, 1));
+            _pControls.LeftSnake.Down.performed += _ => SetMovementDirection(new Vector2Int(0, -1));
+            _pControls.LeftSnake.Left.performed += _ => SetMovementDirection(new Vector2Int(-1, 0));
+            _pControls.LeftSnake.Right.performed += _ => SetMovementDirection(new Vector2Int(1, 0));
         }
         else
         {
-            _pControls.RightSnake.Up.started += ctx => lastDir = new Vector2(0, 1);
-            _pControls.RightSnake.Down.started += ctx => lastDir = new Vector2(0, -1);
-            _pControls.RightSnake.Left.started += ctx => lastDir = new Vector2(-1, 0);
-            _pControls.RightSnake.Right.started += ctx => lastDir = new Vector2(1, 0);
+            _pControls.RightSnake.Up.started += _ => SetMovementDirection(new Vector2Int(0, 1));
+            _pControls.RightSnake.Down.started += _ => SetMovementDirection(new Vector2Int(0, -1));
+            _pControls.RightSnake.Left.started += _ => SetMovementDirection(new Vector2Int(-1, 0));
+            _pControls.RightSnake.Right.started += _ => SetMovementDirection(new Vector2Int(1, 0));
         }
+    }
+
+    private void SetMovementDirection(Vector2Int direction)
+    {
+        // Return if the game manager says the game is over
+        if (GameManager.Instance.IsGameOver)
+            return;
+
+        // Set the last direction to the new direction.
+        lastDir = direction;
     }
 
     #region Enable/Disable
@@ -77,12 +87,6 @@ public class Snake : MonoBehaviour
     }
 
     #endregion
-
-    private void Update()
-    {
-        // Perform our win check.
-        hasWon = WinCheck(transform.position + new Vector3(lastDir.x, lastDir.y, 0));
-    }
 
     public void Move()
     {
@@ -101,6 +105,9 @@ public class Snake : MonoBehaviour
 
         // Update our segments.
         UpdateSegments();
+
+        // Perform our win check.
+        hasWon = WinCheck(transform.position + new Vector3(lastDir.x, lastDir.y, 0));
     }
 
     // Update the positions of our segments.
@@ -140,7 +147,7 @@ public class Snake : MonoBehaviour
     private bool WinCheck(Vector3 checkPos)
     {
         // If we hit the other snakes head, we have won!
-        if (Physics2D.OverlapCircle(checkPos, .40f, snake) != null)
+        if (Physics2D.OverlapCircle(checkPos, COLLISION_CHECK_RADIUS, snake) != null)
             return true;
 
         return false;

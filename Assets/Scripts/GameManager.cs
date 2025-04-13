@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -9,6 +10,9 @@ using UnityEngine.Events;
 
 public class GameManager : MonoBehaviour
 {
+    // Instance for singleton pattern
+    public static GameManager Instance { get; private set; }
+
     // Runtime
     [SerializeField] private bool performUpdate = true;
     [SerializeField] private bool hasWon = false;
@@ -29,6 +33,13 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject loseMenu;
     [SerializeField] private GameObject heart;
 
+    public bool IsGameOver => !performUpdate;
+    
+    private void Awake()
+    {
+        // Set the instance to this
+        Instance = this;
+    }
 
     private void Start()
     {
