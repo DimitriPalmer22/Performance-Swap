@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -8,54 +9,76 @@ using UnityEngine.Events;
 
 public class Snake : MonoBehaviour
 {
+    private const float COLLISION_CHECK_RADIUS = 0.40f;
+
     // Runtime
-    PlayerControls pControls;
-    [SerializeField] bool hasWon = false;
-    private Vector3 nextHeadPos;
-    private Vector3 nextSegmentPos;
-    private Vector3 segmentTemp;
-    private int segmentLength;
+    [SerializeField] private bool hasWon = false;
 
-    [Header("Movement")]
-    [SerializeField] bool isRight;
-    [Tooltip("The last direction inputted for this snake. Will move this direction on next update.")]
-    [SerializeField] Vector2 lastDir;
+    [Header("Movement"), SerializeField] private bool isRight;
 
-    [Header("Segments")]
-    [SerializeField] Transform[] segments;
+    [Tooltip("The last direction inputted for this snake. Will move this direction on next update."), SerializeField]
+    private Vector2 lastDir;
 
-    [Header("Collision Checks")]
-    [SerializeField] LayerMask obstacles;
-    [SerializeField] LayerMask snake;
-    [SerializeField] UnityEvent onCollision;
+    [Header("Segments"), SerializeField] private Transform[] segments;
 
+    [Header("Collision Checks"), SerializeField]
+    private LayerMask obstacles;
 
-    void Awake()
+    [SerializeField] private LayerMask snake;
+    [SerializeField] private UnityEvent onCollision;
+
+    private PlayerControls _pControls;
+    private Vector3 _nextHeadPos;
+    private Vector3 _nextSegmentPos;
+    private Vector3 _segmentTemp;
+    private int _segmentLength;
+
+    private void Awake()
     {
         // Setup our snake input.
-        pControls = new PlayerControls();
+        _pControls = new PlayerControls();
 
+        // Initialize our input.
+        InitializeInput();
+
+        // Get our segment length.
+        _segmentLength = segments.Length;
+    }
+
+    private void InitializeInput()
+    {
         // Setup different controls based on left and right snake.
-        if(!isRight)
+        if (!isRight)
         {
-            pControls.LeftSnake.Up.started += ctx => lastDir = new Vector2(0, 1);
-            pControls.LeftSnake.Down.started += ctx => lastDir = new Vector2(0, -1);
-            pControls.LeftSnake.Left.started += ctx => lastDir = new Vector2(-1, 0);
-            pControls.LeftSnake.Right.started += ctx => lastDir = new Vector2(1, 0);
+            _pControls.LeftSnake.Up.started += ctx => lastDir = new Vector2(0, 1);
+            _pControls.LeftSnake.Down.started += ctx => lastDir = new Vector2(0, -1);
+            _pControls.LeftSnake.Left.started += ctx => lastDir = new Vector2(-1, 0);
+            _pControls.LeftSnake.Right.started += ctx => lastDir = new Vector2(1, 0);
         }
         else
         {
-            pControls.RightSnake.Up.started += ctx => lastDir = new Vector2(0, 1);
-            pControls.RightSnake.Down.started += ctx => lastDir = new Vector2(0, -1);
-            pControls.RightSnake.Left.started += ctx => lastDir = new Vector2(-1, 0);
-            pControls.RightSnake.Right.started += ctx => lastDir = new Vector2(1, 0);
+            _pControls.RightSnake.Up.started += ctx => lastDir = new Vector2(0, 1);
+            _pControls.RightSnake.Down.started += ctx => lastDir = new Vector2(0, -1);
+            _pControls.RightSnake.Left.started += ctx => lastDir = new Vector2(-1, 0);
+            _pControls.RightSnake.Right.started += ctx => lastDir = new Vector2(1, 0);
         }
-
-        // Get our segment length.
-        segmentLength = segments.Length;
     }
 
-    void Update()
+    #region Enable/Disable
+
+    private void OnEnable()
+    {
+        _pControls.Enable();
+    }
+
+    private void OnDisable()
+    {
+        _pControls.Disable();
+    }
+
+    #endregion
+
+    private void Update()
     {
         // Perform our win check.
         hasWon = WinCheck(transform.position + new Vector3(lastDir.x, lastDir.y, 0));
@@ -64,41 +87,36 @@ public class Snake : MonoBehaviour
     public void Move()
     {
         // Update our next head position.
-        nextHeadPos = transform.position + new Vector3(lastDir.x, lastDir.y, 0);
+        _nextHeadPos = transform.position + new Vector3(lastDir.x, lastDir.y, 0);
 
         // Perform a check for collisions.
-        if(!CollisionCheck(nextHeadPos))
-        {
+        if (!CollisionCheck(_nextHeadPos))
             return;
-        }
 
         // Save our head position to update segments later.
-        nextSegmentPos = transform.position;
+        _nextSegmentPos = transform.position;
 
         // Move our head to this location.
-        transform.position = nextHeadPos;
+        transform.position = _nextHeadPos;
 
         // Update our segments.
         UpdateSegments();
-
-        // Perform our win check.
-        //hasWon = WinCheck(transform.position + new Vector3(lastDir.x, lastDir.y, 0));
     }
 
     // Update the positions of our segments.
     public void UpdateSegments()
     {
         // Our first segment needs to follow the head.
-        segmentTemp = nextSegmentPos;
-        nextSegmentPos = segments[0].position;
-        segments[0].position = segmentTemp;
+        _segmentTemp = _nextSegmentPos;
+        _nextSegmentPos = segments[0].position;
+        segments[0].position = _segmentTemp;
 
         // Now for the rest of the segments.
-        for(int i=1; i<segmentLength; i++)
+        for (var i = 1; i < _segmentLength; i++)
         {
-            segmentTemp = nextSegmentPos;
-            nextSegmentPos = segments[i].position;
-            segments[i].position = segmentTemp;
+            _segmentTemp = _nextSegmentPos;
+            _nextSegmentPos = segments[i].position;
+            segments[i].position = _segmentTemp;
         }
     }
 
@@ -107,7 +125,7 @@ public class Snake : MonoBehaviour
     private bool CollisionCheck(Vector3 checkPos)
     {
         // If we hit any obstacles, do not move here!
-        if(Physics2D.OverlapCircle(checkPos, .40f, obstacles) != null)
+        if (Physics2D.OverlapCircle(checkPos, COLLISION_CHECK_RADIUS, obstacles) != null)
         {
             onCollision.Invoke();
             return false;
@@ -122,28 +140,22 @@ public class Snake : MonoBehaviour
     private bool WinCheck(Vector3 checkPos)
     {
         // If we hit the other snakes head, we have won!
-        if(Physics2D.OverlapCircle(checkPos, .40f, snake) != null)
-        {
+        if (Physics2D.OverlapCircle(checkPos, .40f, snake) != null)
             return true;
-        }
 
         return false;
     }
 
-    public bool GetHasWon()
+    public bool GetHasWon() => hasWon;
+
+    #region Debugging
+
+    private void OnDrawGizmos()
     {
-        return hasWon;
+        // Draw the collision check radius.
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position + new Vector3(lastDir.x, lastDir.y, 0), COLLISION_CHECK_RADIUS);
     }
 
-#region Enable/Disable
-    void OnEnable()
-    {
-        pControls.Enable();
-    }
-
-    void OnDisable()
-    {
-        pControls.Disable();
-    }
-#endregion
+    #endregion
 }

@@ -10,40 +10,42 @@ using UnityEngine.Events;
 public class GameManager : MonoBehaviour
 {
     // Runtime
-    [SerializeField] bool performUpdate = true;
-    [SerializeField] bool hasWon = false;
+    [SerializeField] private bool performUpdate = true;
+    [SerializeField] private bool hasWon = false;
 
-    [Header("Update Loop")]
-    [SerializeField] float updateInterval;
-    [SerializeField] UnityEvent leftUpdateEvent;
-    [SerializeField] UnityEvent rightUpdateEvent;
+    [Header("Update Loop"), SerializeField]
+    private float updateInterval;
+
+    [SerializeField] private UnityEvent leftUpdateEvent;
+    [SerializeField] private UnityEvent rightUpdateEvent;
     [SerializeField] private float leftInterval;
     [SerializeField] private float rightInterval;
 
-    [Header("Winning/Losing")]
-    [SerializeField] Snake leftSnake;
-    [SerializeField] Snake rightSnake;
-    [SerializeField] GameObject winMenu;
-    [SerializeField] GameObject loseMenu;
-    [SerializeField] GameObject heart;
+    [Header("Winning/Losing"), SerializeField]
+    private Snake leftSnake;
+
+    [SerializeField] private Snake rightSnake;
+    [SerializeField] private GameObject winMenu;
+    [SerializeField] private GameObject loseMenu;
+    [SerializeField] private GameObject heart;
 
 
-    void Start()
+    private void Start()
     {
         leftInterval = updateInterval / 2;
         rightInterval = updateInterval;
     }
 
-    void Update()
+    private void Update()
     {
         // If interval hits 0, invoke update event and reset.
-        if(performUpdate)
+        if (performUpdate)
         {
             leftInterval -= Time.deltaTime;
             rightInterval -= Time.deltaTime;
         }
 
-        if(leftInterval <= 0)
+        if (leftInterval <= 0)
         {
             // Perform regular update functions.
             leftUpdateEvent.Invoke();
@@ -52,7 +54,7 @@ public class GameManager : MonoBehaviour
             leftInterval = updateInterval;
         }
 
-        if(rightInterval <= 0)
+        if (rightInterval <= 0)
         {
             // Perform regular update functions.
             rightUpdateEvent.Invoke();
@@ -62,20 +64,18 @@ public class GameManager : MonoBehaviour
         }
 
         // If both snakes have won, stop the game and display win screen!
-        if(!hasWon && (leftSnake.GetHasWon() || rightSnake.GetHasWon()))
-        {
+        if (!hasWon && (leftSnake.GetHasWon() || rightSnake.GetHasWon()))
             OnWin();
-        }
     }
 
     // Stop our update loop.
-    public void StopUpdateLoop()
+    private void StopUpdateLoop()
     {
         performUpdate = false;
     }
 
     // Perform our win actions.
-    public void OnWin()
+    private void OnWin()
     {
         StopUpdateLoop();
 

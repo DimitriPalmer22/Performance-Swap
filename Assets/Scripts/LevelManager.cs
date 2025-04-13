@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 // Responsible for restarting our scene.
@@ -6,31 +7,36 @@ using UnityEngine.SceneManagement;
 public class LevelManager : MonoBehaviour
 {
     // Runtime
-    PlayerControls pControls;
+    private PlayerControls _pControls;
 
-    [Header("Levels")]
-    [SerializeField] GameObject[] levels;
+    [Header("Levels"), SerializeField] private GameObject[] levels;
 
-
-    void Awake()
+    private void Awake()
     {
-        pControls = new PlayerControls();
-
-        pControls.Menu.Restart.started += ctx => SceneManager.LoadScene(0);
+        _pControls = new PlayerControls();
+        _pControls.Menu.Restart.started += OnRestart;
 
         // Choose a random level.
         levels[Random.Range(0, levels.Length)].SetActive(true);
     }
 
-#region Enable/Disable
-    void OnEnable()
+    private void OnRestart(InputAction.CallbackContext ctx)
     {
-        pControls.Enable();
+        // Reload the current scene
+        SceneManager.LoadScene(0);
     }
 
-    void OnDisable()
+    #region Enable/Disable
+
+    private void OnEnable()
     {
-        pControls.Disable();
+        _pControls.Enable();
     }
-#endregion
+
+    private void OnDisable()
+    {
+        _pControls.Disable();
+    }
+
+    #endregion
 }
