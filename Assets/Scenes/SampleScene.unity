@@ -276,6 +276,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hasWon: 0
   isRight: 0
+  initialPosition: {x: 1, y: 1}
   lastDir: {x: 0, y: 1}
   segments:
   - {fileID: 841140382}
@@ -1157,9 +1158,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   levels:
-  - {fileID: 890482117}
-  - {fileID: 1042369315}
-  - {fileID: 1783709653}
+  - {fileID: 890482123}
+  - {fileID: 1042369321}
+  - {fileID: 1783709659}
+  outsideWalls: {fileID: 1880679569}
 --- !u!1 &336886257
 GameObject:
   m_ObjectHideFlags: 0
@@ -8388,6 +8390,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hasWon: 0
   isRight: 1
+  initialPosition: {x: 20, y: 14}
   lastDir: {x: 0, y: -1}
   segments:
   - {fileID: 487435723}

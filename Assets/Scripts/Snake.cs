@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -16,6 +17,8 @@ public class Snake : MonoBehaviour
 
     [Header("Movement"), SerializeField] private bool isRight;
 
+    [SerializeField] private Vector2Int initialPosition;
+
     [Tooltip("The last direction inputted for this snake. Will move this direction on next update."), SerializeField]
     private Vector2Int lastDir;
 
@@ -28,10 +31,16 @@ public class Snake : MonoBehaviour
     [SerializeField] private UnityEvent onCollision;
 
     private PlayerControls _pControls;
-    private Vector3 _nextHeadPos;
+
     private Vector3 _nextSegmentPos;
     private Vector3 _segmentTemp;
     private int _segmentLength;
+
+    // Converting to the grid-based system
+    private Vector2Int _currentGridPosition;
+    private Vector2Int _nextHeadPos;
+    private Vector2Int _previousHeadPos;
+    private Vector2Int[] _segmentPositions;
 
     private void Awake()
     {
@@ -43,6 +52,33 @@ public class Snake : MonoBehaviour
 
         // Get our segment length.
         _segmentLength = segments.Length;
+
+        // Initialize our segment positions.
+        InitializeSegmentPositions();
+    }
+
+    private void InitializeSegmentPositions()
+    {
+        // Set the initial position of the snake.
+        _currentGridPosition = initialPosition;
+
+        _segmentPositions = new Vector2Int[_segmentLength];
+
+        // Set the segment positions.
+        for (var i = 0; i < _segmentLength; i++)
+            _segmentPositions[i] = initialPosition;
+    }
+
+    private void Start()
+    {
+        // Move each of the segments to the correct position.
+        LevelManager.Instance.TryGetPositionOnGrid(initialPosition, out var worldPos);
+
+        foreach (var segment in segments)
+            segment.position = worldPos;
+
+        // Update our head position.
+        transform.position = worldPos;
     }
 
     private void InitializeInput()
@@ -91,51 +127,76 @@ public class Snake : MonoBehaviour
     public void Move()
     {
         // Update our next head position.
-        _nextHeadPos = transform.position + new Vector3(lastDir.x, lastDir.y, 0);
+        _nextHeadPos = _currentGridPosition + lastDir;
 
         // Perform a check for collisions.
         if (!CollisionCheck(_nextHeadPos))
+        {
+            onCollision.Invoke();
             return;
+        }
 
         // Save our head position to update segments later.
+        _previousHeadPos = _currentGridPosition;
         _nextSegmentPos = transform.position;
 
-        // Move our head to this location.
-        transform.position = _nextHeadPos;
+        // Move our head to this new location.
+        MoveSegment(transform, _nextHeadPos);
+        _currentGridPosition = _nextHeadPos;
+        LevelManager.Instance.SetSnakeInfo(_currentGridPosition, true, isRight, true);
 
         // Update our segments.
         UpdateSegments();
 
         // Perform our win check.
-        hasWon = WinCheck(transform.position + new Vector3(lastDir.x, lastDir.y, 0));
+        // hasWon = WinCheck(transform.position + new Vector3(lastDir.x, lastDir.y, 0));
+        hasWon = WinCheck(_currentGridPosition + lastDir);
+    }
+
+    private void MoveSegment(Transform segment, Vector2Int nextPos)
+    {
+        // Move the segment to the new position
+        if (LevelManager.Instance.TryGetPositionOnGrid(nextPos, out var worldPos))
+            segment.position = worldPos;
     }
 
     // Update the positions of our segments.
-    public void UpdateSegments()
+    private void UpdateSegments()
     {
+        // First clear the snake info on the grid for all segments
+        foreach (var position in _segmentPositions)
+            LevelManager.Instance.SetSnakeInfo(position, false, false, false);
+
         // Our first segment needs to follow the head.
-        _segmentTemp = _nextSegmentPos;
-        _nextSegmentPos = segments[0].position;
-        segments[0].position = _segmentTemp;
+        var nextPos = _previousHeadPos;
+        MoveSegment(segments[0], nextPos);
+        _segmentPositions[0] = _previousHeadPos;
 
         // Now for the rest of the segments.
-        for (var i = 1; i < _segmentLength; i++)
+        // Go through each segment and move it to the next position.
+        // Go through backwards so we don't overwrite the positions.
+        for (var i = _segmentPositions.Length - 1; i >= 1; i--)
         {
-            _segmentTemp = _nextSegmentPos;
-            _nextSegmentPos = segments[i].position;
-            segments[i].position = _segmentTemp;
+            _segmentPositions[i] = _segmentPositions[i - 1];
+            MoveSegment(segments[i], _segmentPositions[i]);
         }
+
+        // Lastly, update the snake info on the grid for all segments
+        foreach (var position in _segmentPositions)
+            LevelManager.Instance.SetSnakeInfo(position, true, isRight, false);
     }
 
-    // Perform a collision check at the next head location.
-    // Returns true if we should move and false if we should not move.
-    private bool CollisionCheck(Vector3 checkPos)
+    private bool CollisionCheck(Vector2Int checkPos)
     {
         // If we hit any obstacles, do not move here!
-        if (Physics2D.OverlapCircle(checkPos, COLLISION_CHECK_RADIUS, obstacles) != null)
+        if (LevelManager.Instance.TryGetTile(checkPos, out var tile))
         {
-            onCollision.Invoke();
-            return false;
+            if (tile.type == GridTile.TileType.Wall)
+                return false;
+
+            if (tile.snakeTileType == GridTile.SnakeTileType.LeftSnakeBody ||
+                tile.snakeTileType == GridTile.SnakeTileType.RightSnakeBody)
+                return false;
         }
 
         // If we pass the checks, return true and move.
@@ -144,11 +205,14 @@ public class Snake : MonoBehaviour
 
     // Perform a win check at the next head forward location.
     // Returns true if we are touching the other snakes head.
-    private bool WinCheck(Vector3 checkPos)
+    private bool WinCheck(Vector2Int checkPos)
     {
         // If we hit the other snakes head, we have won!
-        if (Physics2D.OverlapCircle(checkPos, COLLISION_CHECK_RADIUS, snake) != null)
-            return true;
+        if (LevelManager.Instance.TryGetTile(checkPos, out var tile))
+        {
+            return (tile.snakeTileType == GridTile.SnakeTileType.RightSnakeHead && !isRight) ||
+                   (tile.snakeTileType == GridTile.SnakeTileType.LeftSnakeHead && isRight);
+        }
 
         return false;
     }
@@ -161,7 +225,12 @@ public class Snake : MonoBehaviour
     {
         // Draw the collision check radius.
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position + new Vector3(lastDir.x, lastDir.y, 0), COLLISION_CHECK_RADIUS);
+
+        var nextPos = _currentGridPosition + lastDir;
+
+        // Get the world position of the next head position.
+        if (LevelManager.Instance?.TryGetPositionOnGrid(nextPos, out var worldPos) ?? false)
+            Gizmos.DrawWireSphere(worldPos, COLLISION_CHECK_RADIUS);
     }
 
     #endregion
